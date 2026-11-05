@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="theme-color" content="#101820"><meta name="description" content="دليل العراق GPS - خرائط وتحديد موقعك والاتجاهات داخل العراق">
+<link rel="manifest" href="manifest.webmanifest"><link rel="icon" href="icons/icon-192.svg">
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<title>دليل العراق GPS</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#101820;color:#f4f7f8;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+header{height:64px;background:#172632;display:flex;align-items:center;gap:12px;padding:0 16px;box-shadow:0 2px 12px #0005}
+.logo{width:38px;height:38px;border-radius:12px;background:#155b4c;display:grid;place-items:center;color:#48e0ad;font-size:22px}
+h1{font-size:18px;margin:0}small{color:#9db3c0}.wrap{padding:12px;max-width:900px;margin:auto}
+.search{display:flex;gap:8px;margin-bottom:10px}.search input{min-width:0;flex:1;background:#253744;border:1px solid #40515b;color:white;border-radius:12px;padding:13px;font-size:15px}
+button,.linkbtn{border:0;border-radius:12px;padding:12px 14px;background:#1b8b6d;color:white;font-weight:700;font-size:14px;cursor:pointer}
+#map{height:52vh;min-height:330px;border-radius:16px;overflow:hidden;border:1px solid #344751}
+.panel{background:#172632;border:1px solid #344751;border-radius:16px;padding:13px;margin-top:12px}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}.row>*{flex:1}
+select{background:#253744;color:white;border:1px solid #40515b;border-radius:10px;padding:11px;min-width:120px}
+.note{font-size:12px;color:#a8bac4;line-height:1.7}.status{color:#4ce0ad;font-size:13px;margin-top:8px}
+a{color:#58d9b1}.full{width:100%;margin-top:10px}.leaflet-container{background:#263b3a}
+.leaflet-control-attribution{font-size:10px!important}
+</style>
+</head>
+<body>
+<header><div class="logo">⌖</div><div><h1>دليل العراق GPS</h1><small>خرائط العراق والاتجاهات</small></div></header>
+<main class="wrap">
+ <div class="search"><input id="dest" placeholder="ابحث عن مدينة أو مكان في العراق"><button id="find">بحث</button></div>
+ <div id="map" aria-label="خريطة العراق"></div>
+ <section class="panel">
+  <div class="row"><button id="locate">◎ موقعي الحالي</button><select id="mode" aria-label="وسيلة النقل"><option value="driving">سيارة</option><option value="transit">حافلة / نقل عام</option><option value="bicycling">دراجة</option><option value="walking">مشي</option><option value="truck">شاحنة (اتجاهات قيادة)</option></select></div>
+  <button id="navigate" class="full">ابدأ الاتجاهات إلى الوجهة</button>
+  <div id="status" class="status" role="status">حدد موقعك وابحث عن وجهتك للبدء.</div>
+  <p class="note">الخريطة تعرض بيانات OpenStreetMap مع إظهار نسب المصدر. زر الاتجاهات يفتح Google Maps لإرشاد الطريق حسب وسيلة النقل المختارة. خيار الشاحنة يفتح اتجاهات قيادة عامة ولا يضمن تجنب الطرق غير المناسبة للشاحنات.</p>
+ </section>
+ <p class="note">© OpenStreetMap contributors · هذا إصدار أولي تجريبي. يحتاج اتصال إنترنت. لا يوفر حالياً خرائط دون إنترنت أو توجيهاً صوتياً مدمجاً.</p>
+</main>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+const map=L.map('map').setView([33.2,43.7],6);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap contributors</a>'}).addTo(map);
+let current=null,destination=null,marker=null;
+const status=document.getElementById('status');
+function say(t){status.textContent=t}
+document.getElementById('locate').onclick=()=>{
+ if(!navigator.geolocation){say('المتصفح لا يدعم تحديد الموقع.');return}
+ say('جارٍ تحديد موقعك…');
+ navigator.geolocation.getCurrentPosition(p=>{
+ current=[p.coords.latitude,p.coords.longitude];map.setView(current,15);
+ if(marker)map.removeLayer(marker);
+ marker=L.marker(current).addTo(map).bindPopup('موقعك الحالي').openPopup();
+ say('تم تحديد موقعك بنجاح.');
+ },e=>say('تعذر تحديد الموقع. فعّل GPS واسمح بصلاحية الموقع.'),{enableHighAccuracy:true,timeout:15000});
+};
+document.getElementById('find').onclick=()=>{
+ const q=document.getElementById('dest').value.trim();
+ if(!q){say('اكتب اسم مدينة أو مكان أولاً.');return}
+ const url='https://www.google.com/maps/search/?api=1&query='+encodeURIComponent(q+' العراق');
+ window.open(url,'_blank');say('فتحنا نتائج البحث في خرائط Google. اختر المكان ثم ارجع للتطبيق.');
+};
+document.getElementById('navigate').onclick=()=>{
+ const q=document.getElementById('dest').value.trim();
+ if(!q){say('اكتب وجهتك أولاً.');return}
+ const mode=document.getElementById('mode').value;
+ const travel=mode==='truck'?'driving':mode;
+ const origin=current?current.join(','):'';
+ const url='https://www.google.com/maps/dir/?api=1&destination='+encodeURIComponent(q+', Iraq')+(origin?'&origin='+encodeURIComponent(origin):'')+'&travelmode='+travel;
+ window.open(url,'_blank');say('تم فتح الاتجاهات في Google Maps.');
+};
+if('serviceWorker' in navigator)window.addEventListener('load',()=>navigator.serviceWorker.register('./sw.js').catch(()=>{}));
+</script>
+</body></html>
